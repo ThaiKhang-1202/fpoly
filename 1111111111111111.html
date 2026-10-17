@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kahoot Cute Quiz - Trò chơi trắc nghiệm trực tuyến</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter & Fredoka -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Fredoka', 'Inter', sans-serif;
+            user-select: none;
+        }
+        .kahoot-card {
+            transition: all 0.2s ease;
+        }
+        .kahoot-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+        }
+        .answer-btn {
+            transition: transform 0.1s ease, filter 0.1s ease;
+        }
+        .answer-btn:active {
+            transform: scale(0.96);
+            filter: brightness(0.9);
+        }
+        @keyframes pulse-slow {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .animate-pulse-slow {
+            animation: pulse-slow 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-indigo-900 text-white min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+    <!-- Header / Navbar -->
+    <header class="bg-indigo-950/90 backdrop-blur-md px-6 py-4 flex justify-between items-center border-b border-indigo-800/50 shadow-lg z-50">
+        <div class="flex items-center space-x-3 cursor-pointer" onclick="location.reload()">
+            <div class="bg-gradient-to-tr from-yellow-400 to-pink-500 p-2.5 rounded-2xl shadow-md text-white font-bold text-xl flex items-center justify-center">
+                <i class="fa-solid fa-gamepad"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold tracking-wider bg-gradient-to-r from-yellow-300 via-pink-400 to-cyan-300 bg-clip-text text-transparent">Kahoot Cute!</h1>
+                <p class="text-xs text-indigo-300">Trắc nghiệm trực tuyến (Tối đa 80 người)</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3" id="top-nav-actions">
+            <!-- Dynamic header actions based on role -->
+            <div id="nav-player-status" class="hidden items-center gap-2 bg-indigo-900/80 px-3 py-1.5 rounded-xl border border-indigo-700 text-sm">
+                <span id="nav-player-avatar" class="text-lg">🐶</span>
+                <span id="nav-player-name" class="font-bold text-yellow-300">Player</span>
+            </div>
+            <button onclick="openAdminLoginModal()" id="btn-admin-login" class="bg-indigo-800 hover:bg-indigo-700 text-yellow-300 px-4 py-2 rounded-xl font-semibold text-sm shadow border border-indigo-700 transition flex items-center gap-2">
+                <i class="fa-solid fa-user-shield"></i> Chủ phòng (Admin)
+            </button>
+            <button onclick="logoutAdmin()" id="btn-admin-logout" class="hidden bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-xl font-semibold text-sm shadow transition flex items-center gap-2">
+                <i class="fa-solid fa-right-from-bracket"></i> Thoát Admin
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-grow flex flex-col items-center justify-center p-4 max-w-6xl mx-auto w-full relative">
+
+        <!-- SCREEN 0: ADMIN DASHBOARD HUB (Tách biệt hoàn toàn cho Admin khi đã đăng nhập) -->
+        <div id="screen-admin-hub" class="w-full max-w-5xl bg-white text-gray-800 rounded-3xl shadow-2xl p-6 sm:p-8 space-y-6 hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-center border-b border-gray-100 pb-4 gap-4">
+                <div>
+                    <div class="inline-block bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Khu vực quản trị tối cao</div>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-indigo-950 mt-1">👑 Bảng Điều Hành Chủ Phòng</h2>
+                    <p class="text-sm text-gray-500">Quản lý câu hỏi, theo dõi người chơi trực tuyến và điều khiển tiến trình phòng chơi.</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-50 border border-indigo-200 px-4 py-2 rounded-2xl text-center">
+                        <span class="block text-xs text-indigo-500 font-bold">TRẠNG THÁI PHÒNG</span>
+                        <span id="admin-room-status-badge" class="text-sm font-bold text-indigo-900 uppercase">LOBBY</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Quick Actions Toolbar -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-gradient-to-br from-emerald-500 to-teal-600 text-white p-5 rounded-2xl shadow-md flex flex-col justify-between space-y-3">
+                    <div>
+                        <h4 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-play"></i> Bắt đầu / Điều khiển</h4>
+                        <p class="text-xs text-emerald-100 mt-1">Kích hoạt trận đấu hoặc chuyển câu hỏi trực tiếp cho toàn bộ người chơi.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="adminStartGameFromHub()" class="bg-white text-emerald-700 hover:bg-emerald-50 px-4 py-2 rounded-xl font-bold text-xs shadow transition flex-1">
+                            Bắt đầu Game
+                        </button>
+                        <button onclick="adminNextStepFromHub()" class="bg-emerald-800 hover:bg-emerald-900 text-white px-4 py-2 rounded-xl font-bold text-xs shadow transition flex-1">
+                            Tiếp theo ➔
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-br from-indigo-600 to-purple-600 text-white p-5 rounded-2xl shadow-md flex flex-col justify-between space-y-3">
+                    <div>
+                        <h4 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-list-check"></i> Quản lý Câu hỏi</h4>
+                        <p class="text-xs text-indigo-100 mt-1">Tùy chỉnh nội dung 10 câu hỏi, đáp án A-B-C-D và đáp án chính xác.</p>
+                    </div>
+                    <button onclick="openAdminDashboardModal('questions')" class="bg-white text-indigo-700 hover:bg-indigo-50 px-4 py-2 rounded-xl font-bold text-xs shadow transition text-center">
+                        Mở Trình Sửa Câu Hỏi
+                    </button>
+                </div>
+
+                <div class="bg-gradient-to-br from-amber-500 to-orange-600 text-white p-5 rounded-2xl shadow-md flex flex-col justify-between space-y-3">
+                    <div>
+                        <h4 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-users"></i> Quản lý Người chơi</h4>
+                        <p class="text-xs text-amber-100 mt-1">Theo dõi danh sách người tham gia (tối đa 80) và loại bỏ tài khoản vi phạm.</p>
+                    </div>
+                    <button onclick="openAdminDashboardModal('players')" class="bg-white text-amber-800 hover:bg-amber-50 px-4 py-2 rounded-xl font-bold text-xs shadow transition text-center">
+                        Xem Danh Sách (<span id="admin-hub-player-count">0</span>)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Live Admin Monitor View -->
+            <div class="bg-gray-50 rounded-2xl p-5 border border-gray-200 space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-gray-700 text-sm uppercase tracking-wider">Trực tiếp phòng chơi hiện tại</h3>
+                    <button onclick="restartGame()" class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-xl font-bold text-xs transition">
+                        <i class="fa-solid fa-rotate-right mr-1"></i> Đặt lại phòng (Reset)
+                    </button>
+                </div>
+                <div id="admin-live-monitor" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 max-h-60 overflow-y-auto p-1">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 1: WELCOME / JOIN SCREEN (Dành cho Người chơi thường) -->
+        <div id="screen-welcome" class="w-full max-w-md bg-white text-gray-800 rounded-3xl shadow-2xl p-6 sm:p-8 space-y-6 transform transition-all">
+            <div class="text-center space-y-2">
+                <div class="inline-block bg-pink-100 text-pink-600 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">Phiên chơi trực tuyến</div>
+                <h2 class="text-2xl sm:text-3xl font-bold text-indigo-900">Tham gia trò chơi</h2>
+                <p class="text-sm text-gray-500">Nhập biệt danh và chọn nhân vật chibi yêu thích của bạn để bắt đầu!</p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Biệt danh của bạn</label>
+                    <input type="text" id="input-nickname" maxlength="20" placeholder="Nhập biệt danh của bạn..." class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-indigo-600 focus:outline-none font-medium text-gray-800 transition">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Chọn nhân vật / Avatar Chibi</label>
+                    <div id="avatar-grid" class="grid grid-cols-4 gap-3 max-h-48 overflow-y-auto p-1 bg-gray-50 rounded-2xl border-2 border-gray-200">
+                        <!-- Avatars populated via JS -->
+                    </div>
+                </div>
+
+                <button onclick="joinGame()" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-3.5 px-6 rounded-2xl shadow-lg shadow-indigo-500/30 transition transform hover:-translate-y-0.5 text-base flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-to-bracket"></i> Vào phòng chờ
+                </button>
+            </div>
+
+            <div class="pt-4 border-t border-gray-100 flex flex-col items-center justify-center space-y-3">
+                <p class="text-xs text-gray-400">Quét mã QR để tham gia nhanh bằng điện thoại:</p>
+                <div class="bg-white p-2 rounded-2xl shadow border border-gray-200">
+                    <img id="qr-code-img" src="" alt="QR Code" class="w-32 h-32 object-contain">
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 2: LOBBY WAITING ROOM (Dành cho Người chơi) -->
+        <div id="screen-lobby" class="w-full max-w-4xl bg-white text-gray-800 rounded-3xl shadow-2xl p-6 sm:p-8 space-y-6 hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-center border-b border-gray-100 pb-4 gap-4">
+                <div>
+                    <div class="inline-block bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold uppercase">Phòng chờ mở</div>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-indigo-900 mt-1">Phòng Sẵn Sàng</h2>
+                    <p class="text-sm text-gray-500">Đang chờ chủ phòng bắt đầu trò chơi (Tối đa 80 người)</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-50 border border-indigo-200 px-4 py-2 rounded-2xl text-center">
+                        <span class="block text-xs text-indigo-500 font-bold">NGƯỜI CHƠI</span>
+                        <span id="player-count-badge" class="text-xl font-bold text-indigo-900">0 / 80</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="player-waiting-notice" class="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 text-center text-indigo-800 font-medium animate-pulse-slow">
+                <i class="fa-solid fa-hourglass-half mr-2 text-indigo-600"></i> Bạn đã vào phòng! Hãy chuẩn bị tinh thần, chủ phòng sẽ bắt đầu sớm thôi...
+            </div>
+
+            <div>
+                <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Danh sách người chơi trong phòng:</h3>
+                <div id="lobby-players-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3 max-h-96 overflow-y-auto p-2 bg-gray-50 rounded-2xl border border-gray-200">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 3: QUESTION GAMEPLAY -->
+        <div id="screen-question" class="w-full max-w-4xl bg-white text-gray-800 rounded-3xl shadow-2xl p-6 sm:p-8 space-y-6 hidden">
+            <div class="flex justify-between items-center border-b border-gray-100 pb-4">
+                <div class="flex items-center gap-3">
+                    <span id="q-number-badge" class="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-xl font-bold text-sm">Câu 1/10</span>
+                    <span id="q-score-display" class="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-xl font-bold text-sm"><i class="fa-solid fa-star text-yellow-500 mr-1"></i> 0 điểm</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-full bg-indigo-50 border-4 border-indigo-600 flex items-center justify-center font-bold text-indigo-900 text-lg" id="timer-display">
+                        20
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-indigo-900 text-white p-6 rounded-2xl shadow-lg text-center">
+                <h3 id="question-text" class="text-xl sm:text-2xl font-bold leading-relaxed">Đang tải câu hỏi...</h3>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <button onclick="submitAnswer(0)" id="opt-0" class="answer-btn bg-red-500 hover:bg-red-600 text-white p-6 rounded-2xl shadow-lg font-bold text-lg sm:text-xl flex items-center justify-between">
+                    <span class="bg-red-700/50 px-3 py-1 rounded-xl text-sm mr-3">A</span>
+                    <span id="opt-text-0" class="flex-grow text-center">Đáp án A</span>
+                    <span class="w-6"></span>
+                </button>
+                <button onclick="submitAnswer(1)" id="opt-1" class="answer-btn bg-blue-600 hover:bg-blue-700 text-white p-6 rounded-2xl shadow-lg font-bold text-lg sm:text-xl flex items-center justify-between">
+                    <span class="bg-blue-800/50 px-3 py-1 rounded-xl text-sm mr-3">B</span>
+                    <span id="opt-text-1" class="flex-grow text-center">Đáp án B</span>
+                    <span class="w-6"></span>
+                </button>
+                <button onclick="submitAnswer(2)" id="opt-2" class="answer-btn bg-amber-500 hover:bg-amber-600 text-white p-6 rounded-2xl shadow-lg font-bold text-lg sm:text-xl flex items-center justify-between">
+                    <span class="bg-amber-700/50 px-3 py-1 rounded-xl text-sm mr-3">C</span>
+                    <span id="opt-text-2" class="flex-grow text-center">Đáp án C</span>
+                    <span class="w-6"></span>
+                </button>
+                <button onclick="submitAnswer(3)" id="opt-3" class="answer-btn bg-emerald-600 hover:bg-emerald-700 text-white p-6 rounded-2xl shadow-lg font-bold text-lg sm:text-xl flex items-center justify-between">
+                    <span class="bg-emerald-800/50 px-3 py-1 rounded-xl text-sm mr-3">D</span>
+                    <span id="opt-text-3" class="flex-grow text-center">Đáp án D</span>
+                    <span class="w-6"></span>
+                </button>
+            </div>
+        </div>
+
+        <!-- SCREEN 4: FEEDBACK / LEADERBOARD SCREEN -->
+        <div id="screen-feedback" class="w-full max-w-4xl bg-white text-gray-800 rounded-3xl shadow-2xl p-6 sm:p-8 space-y-6 hidden">
+            <div class="text-center space-y-2">
+                <div id="feedback-icon" class="text-5xl mb-2">🎉</div>
+                <h2 id="feedback-title" class="text-2xl sm:text-3xl font-bold text-indigo-900">Chính xác!</h2>
+                <p id="feedback-desc" class="text-gray-600">Bạn đã ghi điểm thành công.</p>
+            </div>
+
+            <div class="bg-gray-50 rounded-2xl p-4 border border-gray-200 space-y-3">
+                <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider text-center">Bảng xếp hạng tạm thời (Top 5)</h3>
+                <div id="mini-leaderboard" class="space-y-2">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+
+            <div class="text-center" id="feedback-next-container">
+                <p class="text-sm text-gray-400 italic">Đang chờ chủ phòng chuyển sang câu tiếp theo...</p>
+            </div>
+        </div>
+
+        <!-- SCREEN 5: FINAL PODIUM SCREEN -->
+        <div id="screen-ended" class="w-full max-w-4xl bg-white text-gray-800 rounded-3xl shadow-2xl p-6 sm:p-8 space-y-6 hidden">
+            <div class="text-center space-y-2">
+                <div class="inline-block bg-yellow-100 text-yellow-700 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">Trò chơi kết thúc</div>
+                <h2 class="text-3xl sm:text-4xl font-bold text-indigo-900">🏆 Bảng Xếp Hạng Tổng Kết</h2>
+                <p class="text-gray-500">Xin chúc mừng các nhà vô địch xuất sắc nhất!</p>
+            </div>
+
+            <div id="podium-container" class="flex justify-center items-end gap-4 py-6">
+                <!-- Rendered dynamically -->
+            </div>
+
+            <div class="bg-gray-50 rounded-2xl p-4 border border-gray-200 space-y-2 max-h-60 overflow-y-auto">
+                <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider">Danh sách toàn bộ người chơi</h3>
+                <div id="final-leaderboard-list" class="space-y-2">
+                    <!-- Rendered dynamically -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ADMIN LOGIN MODAL (Password: 120208) -->
+    <div id="modal-admin-login" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white text-gray-800 rounded-3xl shadow-2xl p-6 sm:p-8 w-full max-w-md space-y-6 relative animate-fadeIn">
+            <button onclick="closeAdminLoginModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl font-bold"><i class="fa-solid fa-xmark"></i></button>
+            <div class="text-center space-y-2">
+                <div class="bg-indigo-100 text-indigo-600 p-3 rounded-2xl w-12 h-12 flex items-center justify-center mx-auto text-xl">
+                    <i class="fa-solid fa-user-shield"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-indigo-900">Đăng nhập Chủ phòng</h3>
+                <p class="text-sm text-gray-500">Nhập mật khẩu quản trị viên để mở bảng điều khiển riêng</p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Tên đăng nhập</label>
+                    <input type="text" id="admin-user-input" value="Admin" readonly class="w-full px-4 py-3 bg-gray-100 border-2 border-gray-200 rounded-xl font-medium text-gray-600 cursor-not-allowed">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Mật khẩu</label>
+                    <input type="password" id="admin-pass-input" placeholder="Nhập mật khẩu quản trị..." class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-indigo-600 focus:outline-none font-medium text-gray-800">
+                </div>
+                <button onclick="submitAdminLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition">
+                    Đăng nhập Quản trị
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN DASHBOARD MODAL (Dùng để sửa câu hỏi & quản lý người chơi) -->
+    <div id="modal-admin-dashboard" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white text-gray-800 rounded-3xl shadow-2xl p-6 sm:p-8 w-full max-w-4xl max-h-[90vh] flex flex-col space-y-6 relative">
+            <div class="flex justify-between items-center border-b border-gray-100 pb-4">
+                <h3 id="admin-modal-title" class="text-2xl font-bold text-indigo-950 flex items-center gap-2">
+                    <i class="fa-solid fa-gear text-indigo-600"></i> Quản lý Trò chơi
+                </h3>
+                <button onclick="closeAdminDashboardModal()" class="text-gray-400 hover:text-gray-600 text-xl font-bold"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="flex space-x-2 border-b border-gray-200">
+                <button onclick="switchAdminTab('questions')" id="tab-btn-questions" class="px-4 py-2 font-bold text-sm border-b-2 border-indigo-600 text-indigo-600">Quản lý 10 Câu hỏi</button>
+                <button onclick="switchAdminTab('players')" id="tab-btn-players" class="px-4 py-2 font-bold text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700">Quản lý Người chơi (<span id="admin-modal-player-count">0</span>)</button>
+            </div>
+
+            <div id="admin-tab-questions" class="flex-grow overflow-y-auto space-y-4 pr-2">
+                <div class="flex justify-between items-center">
+                    <p class="text-sm text-gray-500">Chỉnh sửa nội dung 10 câu hỏi và đáp án cho trò chơi:</p>
+                    <button onclick="saveQuestionsToDB()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-bold text-sm shadow">
+                        <i class="fa-solid fa-floppy-disk mr-1"></i> Lưu thay đổi
+                    </button>
+                </div>
+                <div id="questions-editor-container" class="space-y-4">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <div id="admin-tab-players" class="flex-grow overflow-y-auto space-y-4 pr-2 hidden">
+                <p class="text-sm text-gray-500">Danh sách người chơi trong phòng (Cho phép loại bỏ tài khoản vi phạm):</p>
+                <div class="bg-gray-50 rounded-2xl border border-gray-200 overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 text-xs font-bold text-gray-600 uppercase border-b border-gray-200">
+                                <th class="p-3">Avatar</th>
+                                <th class="p-3">Biệt danh</th>
+                                <th class="p-3">Điểm số</th>
+                                <th class="p-3 text-right">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-players-table-body">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOTIFICATION MODAL -->
+    <div id="modal-notification" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white text-gray-800 rounded-3xl shadow-2xl p-6 sm:p-8 w-full max-w-sm text-center space-y-4">
+            <div id="notif-icon" class="text-4xl text-indigo-600">ℹ️</div>
+            <h4 id="notif-title" class="text-xl font-bold text-indigo-950">Thông báo</h4>
+            <p id="notif-message" class="text-sm text-gray-600">Nội dung thông báo...</p>
+            <button onclick="closeNotification()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl shadow">Đã hiểu</button>
+        </div>
+    </div>
+
+    <footer class="text-center py-4 text-xs text-indigo-300/70">
+        Kahoot Cute Quiz Online • Tối đa 80 người chơi • Đồng bộ thời gian thực
+    </footer>
+
+    <!-- Firebase Application Logic with Fallback Handling -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? (__app_id ? __app_id : 'kahoot-cute-app-v1') : 'kahoot-cute-app-v1';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyDummyKeyForLocalTesting",
+            authDomain: "dummy.firebaseapp.com",
+            projectId: "dummy-project"
+        };
+
+        let app, db, auth;
+        let isFirebaseActive = false;
+
+        const avatars = ['🐶', '🐱', '🦊', '🐼', '🐨', '🦁', '🐯', '🐰', '🐥', '🦄', '🐸', '🐙', '🐧', '🐳', '🐬', '🦋', '🐹', '🐻', '🦝'];
+
+        const defaultQuestions = [
+            { question: "Trái Đất quay quanh mặt trời mất bao lâu?", options: ["24 giờ", "365 ngày", "30 ngày", "7 ngày"], correct: 1, duration: 20 },
+            { question: "Đâu là loài vật nhanh nhất trên cạn?", options: ["Sư tử", "Ngựa vằn", "Báo Gê-pa", "Thỏ"], correct: 2, duration: 20 },
+            { question: "Nước sôi ở điều kiện tiêu chuẩn ở nhiệt độ bao nhiêu?", options: ["50°C", "100°C", "0°C", "212°C"], correct: 1, duration: 20 },
+            { question: "Thủ đô của nước Việt Nam là gì?", options: ["TP. Hồ Chí Minh", "Đà Nẵng", "Hải Phòng", "Hà Nội"], correct: 3, duration: 20 },
+            { question: "Hành tinh nào lớn nhất trong hệ Mặt Trời?", options: ["Sao Mộc", "Sao Thổ", "Trái Đất", "Sao Hỏa"], correct: 0, duration: 20 },
+            { question: "Con vật nào được mệnh danh là 'chúa sơn lâm'?", options: ["Voi", "Hổ", "Gấu", "Sói"], correct: 1, duration: 20 },
+            { question: "1 tuần có bao nhiêu giờ?", options: ["24 giờ", "168 giờ", "72 giờ", "100 giờ"], correct: 1, duration: 20 },
+            { question: "Ngôn ngữ lập trình nào dùng chủ yếu cho trình duyệt web?", options: ["Python", "C++", "JavaScript", "Java"], correct: 2, duration: 20 },
+            { question: "Đại dương nào lớn nhất trên Trái Đất?", options: ["Đại Tây Dương", "Indô Dương", "Bắc Băng Dương", "Thái Bình Dương"], correct: 3, duration: 20 },
+            { question: "Số pi (π) có giá trị gần đúng là bao nhiêu?", options: ["3.14", "2.71", "1.41", "1.73"], correct: 0, duration: 20 }
+        ];
+
+        window.appData = {
+            myPlayerId: localStorage.getItem('kahoot_player_id') || 'p_' + Math.random().toString(36).substring(2, 9),
+            nickname: '',
+            selectedAvatar: avatars[0],
+            isAdmin: false,
+            currentScreen: 'welcome',
+            roomState: {
+                status: 'lobby',
+                currentQuestion: 0,
+                startTime: Date.now(),
+                duration: 20,
+                questions: defaultQuestions,
+                updatedAt: Date.now()
+            },
+            players: [],
+            timerInterval: null,
+            timeRemaining: 20,
+            hasAnsweredCurrent: false
+        };
+        localStorage.setItem('kahoot_player_id', window.appData.myPlayerId);
+
+        window.showNotification = function(title, msg, icon='ℹ️') {
+            document.getElementById('notif-title').innerText = title;
+            document.getElementById('notif-message').innerText = msg;
+            document.getElementById('notif-icon').innerText = icon;
+            document.getElementById('modal-notification').classList.remove('hidden');
+        };
+        window.closeNotification = function() {
+            document.getElementById('modal-notification').classList.add('hidden');
+        };
+
+        function getRoomDocRef() {
+            return doc(db, 'artifacts', appId, 'rooms', 'main');
+        }
+
+        function getPlayerDocRef(playerId) {
+            return doc(db, 'artifacts', appId, 'players', playerId);
+        }
+
+        function getPlayersCollectionRef() {
+            return collection(db, 'artifacts', appId, 'players');
+        }
+
+        async function initApp() {
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                isFirebaseActive = true;
+                await checkAndInitRoom();
+                listenToRoom();
+                listenToPlayers();
+
+            } catch (err) {
+                console.warn("Firebase fallback active (Local execution mode):", err);
+                isFirebaseActive = false;
+                handleRoomStateChange(window.appData.roomState);
+            }
+
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=` + encodeURIComponent(window.location.href);
+            document.getElementById('qr-code-img').src = qrUrl;
+
+            renderAvatarPicker();
+        }
+
+        function renderAvatarPicker() {
+            const grid = document.getElementById('avatar-grid');
+            grid.innerHTML = avatars.map((av, idx) => `
+                <div onclick="selectAvatar('${av}', this)" class="avatar-option text-3xl p-3 bg-white rounded-xl border-2 ${idx === 0 ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200'} flex items-center justify-center cursor-pointer hover:scale-105 transition">
+                    ${av}
+                </div>
+            `).join('');
+            window.appData.selectedAvatar = avatars[0];
+        }
+
+        window.selectAvatar = function(av, el) {
+            document.querySelectorAll('.avatar-option').forEach(e => {
+                e.classList.remove('border-indigo-600', 'bg-indigo-50');
+                e.classList.add('border-gray-200');
+            });
+            el.classList.remove('border-gray-200');
+            el.classList.add('border-indigo-600', 'bg-indigo-50');
+            window.appData.selectedAvatar = av;
+        };
+
+        async function checkAndInitRoom() {
+            if (!isFirebaseActive) return;
+            try {
+                const roomRef = getRoomDocRef();
+                const roomSnap = await getDoc(roomRef);
+                if (!roomSnap.exists()) {
+                    await setDoc(roomRef, window.appData.roomState);
+                }
+            } catch(e) {
+                console.warn("Room document read error, defaulting to local state mode.", e);
+                isFirebaseActive = false;
+            }
+        }
+
+        function listenToRoom() {
+            if (!isFirebaseActive) return;
+            const roomRef = getRoomDocRef();
+            onSnapshot(roomRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    window.appData.roomState = data;
+                    handleRoomStateChange(data);
+                }
+            }, (error) => {
+                console.warn("Room snapshot listener error:", error);
+            });
+        }
+
+        function listenToPlayers() {
+            if (!isFirebaseActive) return;
+            const playersCol = getPlayersCollectionRef();
+            onSnapshot(playersCol, (snapshot) => {
+                const playersList = [];
+                snapshot.forEach(d => {
+                    playersList.push(d.data());
+                });
+                window.appData.players = playersList;
+                updatePlayersUI(playersList);
+            }, (error) => {
+                console.warn("Players snapshot error:", error);
+            });
+        }
+
+        window.joinGame = async function() {
+            const nicknameInput = document.getElementById('input-nickname').value.trim();
+            if (!nicknameInput) {
+                showNotification("Thiếu thông tin", "Vui lòng nhập biệt danh của bạn!", "⚠️");
+                return;
+            }
+
+            const currentPlayers = window.appData.players;
+            const existingPlayer = currentPlayers.find(p => p.id === window.appData.myPlayerId);
+            if (currentPlayers.length >= 80 && !existingPlayer) {
+                showNotification("Phòng đầy", "Phòng chơi đã đạt tối đa 80 người tham gia!", "🚫");
+                return;
+            }
+
+            window.appData.nickname = nicknameInput;
+
+            const playerData = {
+                id: window.appData.myPlayerId,
+                name: nicknameInput,
+                avatar: window.appData.selectedAvatar,
+                score: existingPlayer ? existingPlayer.score : 0,
+                currentAnswer: null,
+                answerTime: 0,
+                lastActive: Date.now()
+            };
+
+            if (isFirebaseActive) {
+                try {
+                    const playerRef = getPlayerDocRef(window.appData.myPlayerId);
+                    await setDoc(playerRef, playerData, { merge: true });
+                } catch(e) {
+                    console.warn("Could not save to Firebase, saving locally:", e);
+                }
+            }
+
+            if (!window.appData.players.find(p => p.id === window.appData.myPlayerId)) {
+                window.appData.players.push(playerData);
+            }
+            updatePlayersUI(window.appData.players);
+
+            // Update top nav player info
+            document.getElementById('nav-player-avatar').innerText = window.appData.selectedAvatar;
+            document.getElementById('nav-player-name').innerText = nicknameInput;
+            document.getElementById('nav-player-status').classList.remove('hidden');
+            document.getElementById('nav-player-status').classList.add('flex');
+
+            switchScreen('lobby');
+        };
+
+        function switchScreen(screenName) {
+            // Nếu là Admin đã đăng nhập và đang ở chế độ chờ/chơi chung, ta ưu tiên hiển thị màn hình điều hành Admin Hub nếu ở lobby hoặc ended
+            if (window.appData.isAdmin && (screenName === 'welcome' || screenName === 'lobby' || screenName === 'ended')) {
+                ['screen-welcome', 'screen-lobby', 'screen-question', 'screen-feedback', 'screen-ended', 'screen-admin-hub'].forEach(id => {
+                    document.getElementById(id).classList.add('hidden');
+                });
+                document.getElementById('screen-admin-hub').classList.remove('hidden');
+                window.appData.currentScreen = 'admin-hub';
+                updateAdminHubUI();
+                return;
+            }
+
+            ['screen-welcome', 'screen-lobby', 'screen-question', 'screen-feedback', 'screen-ended', 'screen-admin-hub'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(`screen-${screenName}`).classList.remove('hidden');
+            window.appData.currentScreen = screenName;
+        }
+
+        function updatePlayersUI(players) {
+            document.getElementById('player-count-badge').innerText = `${players.length} / 80`;
+            document.getElementById('admin-modal-player-count').innerText = players.length;
+            document.getElementById('admin-hub-player-count').innerText = players.length;
+
+            const lobbyGrid = document.getElementById('lobby-players-grid');
+            lobbyGrid.innerHTML = players.map(p => `
+                <div class="bg-white p-3 rounded-2xl shadow-sm border border-gray-200 flex items-center space-x-3 kahoot-card">
+                    <span class="text-3xl">${p.avatar}</span>
+                    <div class="overflow-hidden">
+                        <h4 class="font-bold text-gray-800 text-sm truncate">${p.name}</h4>
+                        <p class="text-xs text-indigo-600 font-semibold">${p.score} điểm</p>
+                    </div>
+                </div>
+            `).join('');
+
+            const adminTable = document.getElementById('admin-players-table-body');
+            adminTable.innerHTML = players.map(p => `
+                <tr class="border-b border-gray-100 hover:bg-gray-50">
+                    <td class="p-3 text-2xl">${p.avatar}</td>
+                    <td class="p-3 font-semibold text-gray-800">${p.name}</td>
+                    <td class="p-3 font-bold text-indigo-600">${p.score}</td>
+                    <td class="p-3 text-right">
+                        <button onclick="kickPlayer('${p.id}')" class="bg-red-100 hover:bg-red-200 text-red-600 px-3 py-1.5 rounded-xl font-bold text-xs transition">
+                            <i class="fa-solid fa-user-xmark mr-1"></i> Kick
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+
+            updateAdminHubUI();
+        }
+
+        function updateAdminHubUI() {
+            if (!window.appData.isAdmin) return;
+            const state = window.appData.roomState;
+            document.getElementById('admin-room-status-badge').innerText = state.status;
+
+            const monitor = document.getElementById('admin-live-monitor');
+            monitor.innerHTML = window.appData.players.map(p => `
+                <div class="bg-white p-2.5 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between">
+                    <div class="flex items-center space-x-2 truncate">
+                        <span class="text-xl">${p.avatar}</span>
+                        <span class="font-bold text-gray-800 text-xs truncate">${p.name}</span>
+                    </div>
+                    <span class="text-xs font-bold text-indigo-600">${p.score}đ</span>
+                </div>
+            `).join('');
+        }
+
+        function handleRoomStateChange(state) {
+            const status = state.status;
+            const qIndex = state.currentQuestion;
+            const questions = state.questions || defaultQuestions;
+
+            if (status === 'lobby') {
+                if (window.appData.isAdmin) {
+                    switchScreen('admin-hub');
+                } else {
+                    if (window.appData.currentScreen !== 'welcome' && window.appData.currentScreen !== 'lobby') {
+                        switchScreen('lobby');
+                    }
+                }
+            } else if (status === 'question') {
+                if (window.appData.currentScreen !== 'question') {
+                    switchScreen('question');
+                    window.appData.hasAnsweredCurrent = false;
+                    for (let i = 0; i < 4; i++) {
+                        const btn = document.getElementById(`opt-${i}`);
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-50', 'ring-4', 'ring-white');
+                    }
+                }
+                const q = questions[qIndex];
+                document.getElementById('q-number-badge').innerText = `Câu ${qIndex + 1}/${questions.length}`;
+                document.getElementById('question-text').innerText = q.question;
+                for (let i = 0; i < 4; i++) {
+                    document.getElementById(`opt-text-${i}`).innerText = q.options[i];
+                }
+
+                const me = window.appData.players.find(p => p.id === window.appData.myPlayerId);
+                if (me) {
+                    document.getElementById('q-score-display').innerHTML = `<i class="fa-solid fa-star text-yellow-500 mr-1"></i> ${me.score} điểm`;
+                }
+
+                startCountdown(state.startTime, q.duration || 20);
+
+            } else if (status === 'feedback') {
+                if (window.appData.currentScreen !== 'feedback') {
+                    switchScreen('feedback');
+                    renderFeedbackAndMiniLeaderboard();
+                }
+            } else if (status === 'ended') {
+                if (window.appData.isAdmin) {
+                    switchScreen('admin-hub');
+                } else {
+                    if (window.appData.currentScreen !== 'ended') {
+                        switchScreen('ended');
+                        renderFinalPodium();
+                    }
+                }
+            }
+        }
+
+        function startCountdown(startTime, duration) {
+            if (window.appData.timerInterval) clearInterval(window.appData.timerInterval);
+
+            const timerEl = document.getElementById('timer-display');
+            
+            function updateTimer() {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const remaining = Math.max(0, duration - elapsed);
+                timerEl.innerText = remaining;
+
+                if (remaining <= 0) {
+                    clearInterval(window.appData.timerInterval);
+                    if (window.appData.isAdmin && window.appData.roomState.status === 'question') {
+                        transitionToFeedback();
+                    }
+                }
+            }
+            updateTimer();
+            window.appData.timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        window.submitAnswer = async function(optionIndex) {
+            if (window.appData.hasAnsweredCurrent) return;
+            window.appData.hasAnsweredCurrent = true;
+
+            for (let i = 0; i < 4; i++) {
+                const btn = document.getElementById(`opt-${i}`);
+                btn.disabled = true;
+                if (i === optionIndex) {
+                    btn.classList.add('ring-4', 'ring-white');
+                } else {
+                    btn.classList.add('opacity-50');
+                }
+            }
+
+            const state = window.appData.roomState;
+            const qIndex = state.currentQuestion;
+            const q = state.questions[qIndex];
+            const timeTaken = (Date.now() - state.startTime) / 1000;
+
+            const isCorrect = (optionIndex === q.correct);
+            let earnedPoints = 0;
+            if (isCorrect) {
+                const duration = q.duration || 20;
+                earnedPoints = Math.round(1000 * (1 - (Math.min(timeTaken, duration) / duration) / 2));
+            }
+
+            const me = window.appData.players.find(p => p.id === window.appData.myPlayerId);
+            const newScore = (me ? me.score : 0) + earnedPoints;
+
+            if (me) {
+                me.score = newScore;
+                me.currentAnswer = optionIndex;
+                me.answerTime = timeTaken;
+            }
+
+            if (isFirebaseActive) {
+                try {
+                    const playerRef = getPlayerDocRef(window.appData.myPlayerId);
+                    await updateDoc(playerRef, {
+                        score: newScore,
+                        currentAnswer: optionIndex,
+                        answerTime: timeTaken
+                    });
+                } catch(e) {
+                    console.warn("Could not sync answer to Firebase:", e);
+                }
+            }
+        };
+
+        async function transitionToFeedback() {
+            window.appData.roomState.status = 'feedback';
+            window.appData.roomState.updatedAt = Date.now();
+
+            if (isFirebaseActive) {
+                try {
+                    const roomRef = getRoomDocRef();
+                    await updateDoc(roomRef, {
+                        status: 'feedback',
+                        updatedAt: Date.now()
+                    });
+                } catch(e) {
+                    console.warn("Could not update room state in Firebase:", e);
+                }
+            }
+            handleRoomStateChange(window.appData.roomState);
+        }
+
+        function renderFeedbackAndMiniLeaderboard() {
+            const state = window.appData.roomState;
+            const qIndex = state.currentQuestion;
+            const q = state.questions[qIndex];
+            const me = window.appData.players.find(p => p.id === window.appData.myPlayerId);
+
+            const isCorrect = me && me.currentAnswer === q.correct;
+            const iconEl = document.getElementById('feedback-icon');
+            const titleEl = document.getElementById('feedback-title');
+            const descEl = document.getElementById('feedback-desc');
+
+            if (isCorrect) {
+                iconEl.innerText = "🎉";
+                titleEl.innerText = "Chính xác tuyệt vời!";
+                titleEl.className = "text-2xl sm:text-3xl font-bold text-emerald-600";
+                descEl.innerText = `Bạn đã trả lời đúng! Tổng điểm hiện tại: ${me ? me.score : 0}`;
+                confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+            } else {
+                iconEl.innerText = "❌";
+                titleEl.innerText = "Chưa chính xác!";
+                titleEl.className = "text-2xl sm:text-3xl font-bold text-red-600";
+                descEl.innerText = `Đáp án đúng là: ${['A', 'B', 'C', 'D'][q.correct]}. Cố gắng câu sau nhé!`;
+            }
+
+            const sortedPlayers = [...window.appData.players].sort((a, b) => b.score - a.score).slice(0, 5);
+            const miniLb = document.getElementById('mini-leaderboard');
+            miniLb.innerHTML = sortedPlayers.map((p, idx) => `
+                <div class="flex items-center justify-between bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                    <div class="flex items-center space-x-3">
+                        <span class="font-bold text-gray-400 w-6">#${idx + 1}</span>
+                        <span class="text-2xl">${p.avatar}</span>
+                        <span class="font-bold text-gray-800 text-sm">${p.name} ${p.id === window.appData.myPlayerId ? '(Bạn)' : ''}</span>
+                    </div>
+                    <span class="font-bold text-indigo-600">${p.score} đ</span>
+                </div>
+            `).join('');
+
+            const nextContainer = document.getElementById('feedback-next-container');
+            if (window.appData.isAdmin) {
+                const isLast = qIndex >= state.questions.length - 1;
+                nextContainer.innerHTML = `
+                    <button onclick="adminNextQuestion()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl shadow-lg transition flex items-center justify-center gap-2 mx-auto">
+                        ${isLast ? 'Xem kết quả tổng kết 🏆' : 'Câu hỏi tiếp theo ➔'}
+                    </button>
+                `;
+            } else {
+                nextContainer.innerHTML = `<p class="text-sm text-gray-400 italic">Đang chờ chủ phòng chuyển sang câu tiếp theo...</p>`;
+            }
+        }
+
+        window.adminNextQuestion = async function() {
+            const state = window.appData.roomState;
+            const nextIdx = state.currentQuestion + 1;
+
+            if (nextIdx >= state.questions.length) {
+                window.appData.roomState.status = 'ended';
+            } else {
+                window.appData.roomState.status = 'question';
+                window.appData.roomState.currentQuestion = nextIdx;
+                window.appData.roomState.startTime = Date.now();
+            }
+            window.appData.roomState.updatedAt = Date.now();
+
+            if (isFirebaseActive) {
+                try {
+                    const roomRef = getRoomDocRef();
+                    await updateDoc(roomRef, window.appData.roomState);
+                } catch(e) {
+                    console.warn("Could not update state in Firebase:", e);
+                }
+            }
+            handleRoomStateChange(window.appData.roomState);
+        };
+
+        function renderFinalPodium() {
+            confetti({ particleCount: 200, spread: 100, origin: { y: 0.4 } });
+            const sorted = [...window.appData.players].sort((a, b) => b.score - a.score);
+            const top3 = sorted.slice(0, 3);
+
+            const podiumEl = document.getElementById('podium-container');
+            let html = '';
+            if (top3[1]) {
+                html += `
+                    <div class="flex flex-col items-center">
+                        <span class="text-3xl mb-1">${top3[1].avatar}</span>
+                        <span class="font-bold text-xs text-gray-700 truncate max-w-[80px]">${top3[1].name}</span>
+                        <span class="text-xs text-indigo-600 font-bold mb-1">${top3[1].score} đ</span>
+                        <div class="w-20 h-36 bg-slate-300 rounded-t-2xl flex items-center justify-center font-bold text-2xl text-slate-700 shadow-md">🥈 2</div>
+                    </div>
+                `;
+            }
+            if (top3[0]) {
+                html += `
+                    <div class="flex flex-col items-center">
+                        <span class="text-4xl mb-1 animate-bounce">${top3[0].avatar}</span>
+                        <span class="font-bold text-sm text-indigo-900 truncate max-w-[90px]">${top3[0].name}</span>
+                        <span class="text-xs text-amber-600 font-bold mb-1">${top3[0].score} đ</span>
+                        <div class="w-24 h-48 bg-amber-400 rounded-t-2xl flex items-center justify-center font-bold text-3xl text-amber-900 shadow-xl">👑 1</div>
+                    </div>
+                `;
+            }
+            if (top3[2]) {
+                html += `
+                    <div class="flex flex-col items-center">
+                        <span class="text-3xl mb-1">${top3[2].avatar}</span>
+                        <span class="font-bold text-xs text-gray-700 truncate max-w-[80px]">${top3[2].name}</span>
+                        <span class="text-xs text-indigo-600 font-bold mb-1">${top3[2].score} đ</span>
+                        <div class="w-20 h-28 bg-amber-700/80 rounded-t-2xl flex items-center justify-center font-bold text-2xl text-white shadow-md">🥉 3</div>
+                    </div>
+                `;
+            }
+            podiumEl.innerHTML = html;
+
+            const fullListEl = document.getElementById('final-leaderboard-list');
+            fullListEl.innerHTML = sorted.map((p, idx) => `
+                <div class="flex items-center justify-between bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                    <div class="flex items-center space-x-3">
+                        <span class="font-bold text-gray-500 w-8">#${idx + 1}</span>
+                        <span class="text-2xl">${p.avatar}</span>
+                        <span class="font-bold text-gray-800 text-sm">${p.name} ${p.id === window.appData.myPlayerId ? '(Bạn)' : ''}</span>
+                    </div>
+                    <span class="font-bold text-indigo-600">${p.score} điểm</span>
+                </div>
+            `).join('');
+        }
+
+        window.restartGame = async function() {
+            window.appData.players.forEach(p => {
+                p.score = 0;
+                p.currentAnswer = null;
+                p.answerTime = 0;
+            });
+
+            window.appData.roomState.status = 'lobby';
+            window.appData.roomState.currentQuestion = 0;
+            window.appData.roomState.updatedAt = Date.now();
+
+            if (isFirebaseActive) {
+                try {
+                    const roomRef = getRoomDocRef();
+                    await updateDoc(roomRef, window.appData.roomState);
+                } catch(e) {
+                    console.warn("Could not restart room in Firebase:", e);
+                }
+            }
+            handleRoomStateChange(window.appData.roomState);
+        };
+
+        window.openAdminLoginModal = function() {
+            document.getElementById('modal-admin-login').classList.remove('hidden');
+        };
+        window.closeAdminLoginModal = function() {
+            document.getElementById('modal-admin-login').classList.add('hidden');
+        };
+
+        window.submitAdminLogin = function() {
+            const pass = document.getElementById('admin-pass-input').value;
+            if (pass === '120208') {
+                window.appData.isAdmin = true;
+                closeAdminLoginModal();
+                showNotification("Thành công", "Đăng nhập Chủ phòng thành công!", "👑");
+
+                document.getElementById('btn-admin-login').classList.add('hidden');
+                document.getElementById('btn-admin-logout').classList.remove('hidden');
+                document.getElementById('nav-player-status').classList.add('hidden');
+
+                switchScreen('admin-hub');
+            } else {
+                showNotification("Sai mật khẩu", "Mật khẩu chủ phòng không chính xác.", "❌");
+            }
+        };
+
+        window.logoutAdmin = function() {
+            window.appData.isAdmin = false;
+            document.getElementById('btn-admin-login').classList.remove('hidden');
+            document.getElementById('btn-admin-logout').classList.add('hidden');
+            showNotification("Đã đăng xuất", "Đã thoát chế độ Chủ phòng.", "ℹ️");
+            switchScreen('welcome');
+        };
+
+        window.openAdminDashboardModal = function(tabName = 'questions') {
+            if (!window.appData.isAdmin) return;
+            renderQuestionsEditor();
+            switchAdminTab(tabName);
+            document.getElementById('modal-admin-dashboard').classList.remove('hidden');
+        };
+        window.closeAdminDashboardModal = function() {
+            document.getElementById('modal-admin-dashboard').classList.add('hidden');
+        };
+
+        window.switchAdminTab = function(tabName) {
+            if (tabName === 'questions') {
+                document.getElementById('tab-btn-questions').className = "px-4 py-2 font-bold text-sm border-b-2 border-indigo-600 text-indigo-600";
+                document.getElementById('tab-btn-players').className = "px-4 py-2 font-bold text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700";
+                document.getElementById('admin-tab-questions').classList.remove('hidden');
+                document.getElementById('admin-tab-players').classList.add('hidden');
+            } else {
+                document.getElementById('tab-btn-players').className = "px-4 py-2 font-bold text-sm border-b-2 border-indigo-600 text-indigo-600";
+                document.getElementById('tab-btn-questions').className = "px-4 py-2 font-bold text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700";
+                document.getElementById('admin-tab-players').classList.remove('hidden');
+                document.getElementById('admin-tab-questions').classList.add('hidden');
+            }
+        };
+
+        function renderQuestionsEditor() {
+            const questions = window.appData.roomState ? window.appData.roomState.questions : defaultQuestions;
+            const container = document.getElementById('questions-editor-container');
+            container.innerHTML = questions.map((q, qIdx) => `
+                <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200 space-y-3 question-editor-item" data-index="${qIdx}">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-indigo-900 text-sm">Câu hỏi ${qIdx + 1}</span>
+                    </div>
+                    <div>
+                        <input type="text" value="${q.question}" class="q-text-input w-full px-3 py-2 bg-white border border-gray-300 rounded-xl font-medium text-sm focus:outline-none focus:border-indigo-600" placeholder="Nội dung câu hỏi...">
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-red-500 text-white font-bold px-2.5 py-1 rounded-lg text-xs">A</span>
+                            <input type="text" value="${q.options[0]}" class="q-opt-0 w-full px-3 py-2 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-blue-600 text-white font-bold px-2.5 py-1 rounded-lg text-xs">B</span>
+                            <input type="text" value="${q.options[1]}" class="q-opt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-amber-500 text-white font-bold px-2.5 py-1 rounded-lg text-xs">C</span>
+                            <input type="text" value="${q.options[2]}" class="q-opt-2 w-full px-3 py-2 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-emerald-600 text-white font-bold px-2.5 py-1 rounded-lg text-xs">D</span>
+                            <input type="text" value="${q.options[3]}" class="q-opt-3 w-full px-3 py-2 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none">
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between pt-1">
+                        <label class="text-xs font-semibold text-gray-600">Đáp án đúng:</label>
+                        <select class="q-correct-select px-3 py-1 bg-white border border-gray-300 rounded-xl text-xs font-bold text-indigo-700 focus:outline-none">
+                            <option value="0" ${q.correct === 0 ? 'selected' : ''}>Đáp án A</option>
+                            <option value="1" ${q.correct === 1 ? 'selected' : ''}>Đáp án B</option>
+                            <option value="2" ${q.correct === 2 ? 'selected' : ''}>Đáp án C</option>
+                            <option value="3" ${q.correct === 3 ? 'selected' : ''}>Đáp án D</option>
+                        </select>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.saveQuestionsToDB = async function() {
+            const items = document.querySelectorAll('.question-editor-item');
+            const newQuestions = [];
+
+            items.forEach(item => {
+                const text = item.querySelector('.q-text-input').value;
+                const opt0 = item.querySelector('.q-opt-0').value;
+                const opt1 = item.querySelector('.q-opt-1').value;
+                const opt2 = item.querySelector('.q-opt-2').value;
+                const opt3 = item.querySelector('.q-opt-3').value;
+                const correct = parseInt(item.querySelector('.q-correct-select').value);
+
+                newQuestions.push({
+                    question: text,
+                    options: [opt0, opt1, opt2, opt3],
+                    correct: correct,
+                    duration: 20
+                });
+            });
+
+            window.appData.roomState.questions = newQuestions;
+            if (isFirebaseActive) {
+                try {
+                    const roomRef = getRoomDocRef();
+                    await updateDoc(roomRef, {
+                        questions: newQuestions,
+                        updatedAt: Date.now()
+                    });
+                } catch(e) {
+                    console.warn("Could not save questions to Firebase:", e);
+                }
+            }
+
+            showNotification("Đã lưu", "Cập nhật 10 câu hỏi thành công!", "✅");
+            closeAdminDashboardModal();
+        };
+
+        window.kickPlayer = async function(playerId) {
+            if (!window.appData.isAdmin) return;
+
+            window.appData.players = window.appData.players.filter(p => p.id !== playerId);
+            updatePlayersUI(window.appData.players);
+
+            if (isFirebaseActive) {
+                try {
+                    const playerRef = getPlayerDocRef(playerId);
+                    await deleteDoc(playerRef);
+                } catch(e) {
+                    console.warn("Could not delete player from Firebase:", e);
+                }
+            }
+            showNotification("Đã kick", "Đã xóa người chơi khỏi phòng.", "👢");
+        };
+
+        window.adminStartGameFromHub = async function() {
+            if (!window.appData.isAdmin) return;
+
+            window.appData.roomState.status = 'question';
+            window.appData.roomState.currentQuestion = 0;
+            window.appData.roomState.startTime = Date.now();
+            window.appData.roomState.updatedAt = Date.now();
+
+            if (isFirebaseActive) {
+                try {
+                    const roomRef = getRoomDocRef();
+                    await updateDoc(roomRef, window.appData.roomState);
+                } catch(e) {
+                    console.warn("Could not start game in Firebase:", e);
+                }
+            }
+            handleRoomStateChange(window.appData.roomState);
+        };
+
+        window.adminNextStepFromHub = function() {
+            if (window.appData.roomState && window.appData.roomState.status === 'question') {
+                transitionToFeedback();
+            } else if (window.appData.roomState && window.appData.roomState.status === 'feedback') {
+                window.adminNextQuestion();
+            } else {
+                showNotification("Thông báo", "Trò chơi chưa bắt đầu hoặc đã kết thúc.", "ℹ️");
+            }
+        };
+
+        window.onload = function() {
+            initApp();
+        };
+    </script>
+</body>
+</html>
